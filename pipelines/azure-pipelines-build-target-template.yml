@@ -1,0 +1,28 @@
+parameters:
+  - name: platform
+    type: string
+  - name: version
+    type: string
+  - name: archiveType
+    type: string
+  - name: archiveExtension
+    type: string
+
+steps:
+- task: DotNetCoreCLI@2
+  displayName: Build client (${{ parameters.platform }})
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    zipAfterPublish: false
+    projects: 'src/SimpleReverseProxy/SimpleReverseProxy.csproj'
+    arguments: '-o=$(Agent.TempDirectory)/srp.${{ parameters.platform }} -r=${{ parameters.platform }} -c=release --nologo -p:PublishSingleFile=true -p:Version=${{ parameters.version }} --no-self-contained -p:DebugType=None -p:DebugSymbols=false'
+
+- task: ArchiveFiles@2
+  displayName: Create client archive (${{ parameters.platform }})
+  inputs:
+    rootFolderOrFile: '$(Agent.TempDirectory)/srp.${{ parameters.platform }}'
+    includeRootFolder: false
+    archiveType: ${{ parameters.archiveType }}
+    archiveFile: '$(Build.ArtifactStagingDirectory)/srp.${{ parameters.platform }}.${{ parameters.archiveExtension }}'
+    replaceExistingArchive: true

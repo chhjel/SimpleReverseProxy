@@ -1,0 +1,65 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- name: mainBranchName
+  value: main
+- name: cleanSourceBranch
+  value: $[replace(variables['Build.SourceBranch'], 'refs/heads/', '')]
+- name: isMain
+  value: $[eq(variables['cleanSourceBranch'], variables['mainBranchName'])]
+- name: buildReasonRevisionNumber
+  value: $[counter(variables['isMain'], 0)]
+- name: assemblyVersion
+  value: '1.1.$(buildReasonRevisionNumber)'
+
+steps:
+  ###########
+  ## BUILD ##
+  ###########
+- template: azure-pipelines-build-target-template.yml
+  parameters:
+    platform: linux-x64
+    archiveType: tar
+    archiveExtension: tar.gz
+    version: $(assemblyVersion)
+
+- template: azure-pipelines-build-target-template.yml
+  parameters:
+    platform: win-x64
+    archiveType: zip
+    archiveExtension: zip
+    version: $(assemblyVersion)
+
+- template: azure-pipelines-build-target-template.yml
+  parameters:
+    platform: osx-x64
+    archiveType: zip
+    archiveExtension: zip
+    version: $(assemblyVersion)
+
+#############
+## PUBLISH ##
+#############
+- task: PublishBuildArtifacts@1
+  displayName: Publish build artifacts
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+
+- task: GitHubRelease@1
+  displayName: Create GitHub release
+  inputs:
+    gitHubConnection: 'github.com_chhjel'
+    repositoryName: 'chhjel/SimpleReverseProxy'
+    action: 'create'
+    target: '$(Build.SourceVersion)'
+    tagSource: 'userSpecifiedTag'
+    tag: '$(assemblyVersion)'
+    releaseNotesSource: 'inline'
+    changeLogCompareToRelease: 'lastFullRelease'
+    changeLogType: 'commitBased'
